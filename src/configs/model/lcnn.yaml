@@ -1,0 +1,72 @@
+defaults:
+  - _self_
+
+name: lcnn_asv
+save_dir: ${hydra:runtime.cwd}/experiments/${name}
+
+# Data
+data:
+  root_dir: src/datasets/ASVspoof2019
+  train:
+    batch_size: 32
+    num_workers: 4
+    shuffle: true
+  val:
+    batch_size: 32
+    num_workers: 4
+    shuffle: false
+  test:
+    batch_size: 32
+    num_workers: 4
+    shuffle: false
+
+# Audio processing
+audio:
+  sample_rate: 16000
+  n_fft: 512
+  hop_length: 160  # 10ms at 16kHz
+  win_length: 400  # 25ms at 16kHz
+  window: hann
+  normalized: true
+  center: true
+  pad_mode: reflect
+  power: 2.0  # Power of magnitude spectrogram
+  max_audio_length: 64000  # 4 seconds at 16kHz
+
+# Model
+model:
+  name: lcnn
+  in_channels: 1
+  dropout: 0.7
+
+# Training
+training:
+  epochs: 5  # Changed from 100 to 15
+  optimizer:
+    name: adam
+    lr: 0.0001
+    weight_decay: 0.0001
+  scheduler:
+    name: cosine
+    T_max: ${training.epochs}
+    eta_min: 0.000001
+  grad_clip: 5.0
+  early_stopping:
+    patience: 5  # Reduced from 10 to 5 since we have fewer epochs
+    min_delta: 0.0001
+
+# Logging
+logging:
+  comet:
+    project: antispoofing-project
+    workspace: mshqd
+    name: ${name}
+    tags: [lcnn, asv]
+  log_every_n_steps: 100
+
+# Hydra configuration
+hydra:
+  run:
+    dir: ${save_dir}
+  job:
+    chdir: true 

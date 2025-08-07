@@ -37,7 +37,7 @@ def inference():
         'model': {
             'in_channels': 1
         },
-        'save_dir': 'experiments/lcnn_asv'
+        'save_dir': 'experiments/lcnn_asv_2'
     }
     
     # Create transforms

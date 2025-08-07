@@ -1,8 +1,6 @@
 import os
-import hydra
 import torch
 import pandas as pd
-from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -12,29 +10,53 @@ from src.model.lcnn_model import LCNN
 from src.metrics.eer import EERMetric
 
 
-@hydra.main(version_base="1.2", config_path="src/configs", config_name="model/lcnn")
-def inference(cfg: DictConfig):
+def inference():
     """Run inference on test set and save predictions."""
     
     print("Starting inference...")
     
+    # Configuration
+    config = {
+        'audio': {
+            'n_fft': 512,
+            'hop_length': 160,
+            'win_length': 400,
+            'window': 'hann',
+            'normalized': True,
+            'center': True,
+            'pad_mode': 'reflect',
+            'sample_rate': 16000
+        },
+        'data': {
+            'root_dir': 'src/datasets/ASVspoof2019',
+            'test': {
+                'batch_size': 32,
+                'num_workers': 4
+            }
+        },
+        'model': {
+            'in_channels': 1
+        },
+        'save_dir': 'experiments/lcnn_asv'
+    }
+    
     # Create transforms
     transform = STFTTransform(
-        n_fft=cfg.audio.n_fft,
-        hop_length=cfg.audio.hop_length,
-        win_length=cfg.audio.win_length,
-        window=cfg.audio.window,
-        normalized=cfg.audio.normalized,
-        center=cfg.audio.center,
-        pad_mode=cfg.audio.pad_mode
+        n_fft=config['audio']['n_fft'],
+        hop_length=config['audio']['hop_length'],
+        win_length=config['audio']['win_length'],
+        window=config['audio']['window'],
+        normalized=config['audio']['normalized'],
+        center=config['audio']['center'],
+        pad_mode=config['audio']['pad_mode']
     )
     
     # Create test dataset
     test_dataset = ASVSpoofDataset(
-        root_dir=cfg.data.root_dir,
+        root_dir=config['data']['root_dir'],
         partition="eval",
         transform=transform,
-        sample_rate=cfg.audio.sample_rate
+        sample_rate=config['audio']['sample_rate']
     )
     
     print(f"Test dataset size: {len(test_dataset)}")
@@ -42,17 +64,17 @@ def inference(cfg: DictConfig):
     # Create dataloader
     test_loader = DataLoader(
         test_dataset,
-        batch_size=cfg.data.test.batch_size,
-        num_workers=cfg.data.test.num_workers,
+        batch_size=config['data']['test']['batch_size'],
+        num_workers=config['data']['test']['num_workers'],
         shuffle=False,
         pin_memory=True
     )
     
     # Create model and load weights
-    model = LCNN(in_channels=cfg.model.in_channels)
+    model = LCNN(in_channels=config['model']['in_channels'])
     
     # Check if model file exists
-    model_path = os.path.join(cfg.save_dir, 'best_model.pth')
+    model_path = os.path.join(config['save_dir'], 'best_model.pth')
     if os.path.exists(model_path):
         print(f"Loading model from {model_path}")
         model.load_state_dict(torch.load(model_path, map_location='cpu'))
@@ -77,6 +99,9 @@ def inference(cfg: DictConfig):
             # Get data
             audio = batch['audio'].to(device)
             labels = batch['label'].to(device)
+            
+            print(f"Audio tensor shape: {audio.shape}")
+            print(f"Labels tensor shape: {labels.shape}")
             
             # Forward pass
             logits, _ = model(audio)
@@ -104,9 +129,9 @@ def inference(cfg: DictConfig):
     })
     
     # Create output directory if it doesn't exist
-    os.makedirs(cfg.save_dir, exist_ok=True)
+    os.makedirs(config['save_dir'], exist_ok=True)
     
-    predictions_path = os.path.join(cfg.save_dir, 'predictions.csv')
+    predictions_path = os.path.join(config['save_dir'], 'predictions.csv')
     predictions_df.to_csv(predictions_path, index=False)
     print(f"Predictions saved to {predictions_path}")
 

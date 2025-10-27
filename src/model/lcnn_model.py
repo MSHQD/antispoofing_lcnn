@@ -100,7 +100,8 @@ class LCNN(nn.Module):
             nn.MaxPool2d(2, 2),
         )
 
-        dummy_input = torch.zeros(1, in_channels, 257, 401)
+        # Use actual input size for feature calculation
+        dummy_input = torch.zeros(1, in_channels, 257, 101)  # Updated size
         dummy_output = self.features(dummy_input)
         feature_size = dummy_output.view(1, -1).size(1)
 
